@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cloud Architecture Demo</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 1.5rem; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  button { padding: 8px 16px; border: 0; border-radius: 6px; background: #1a73e8; color: #fff; cursor: pointer; }
+  input { padding: 8px; width: 60%; }
+  .server { font-weight: bold; padding: 2px 8px; border-radius: 4px; }
+  .Server1 { background: #d2e3fc; }
+  .Server2 { background: #fce8b2; }
+  li { margin: 4px 0; }
+  #status { color: #b00020; }
+</style>
+</head>
+<body>
+  <h1>AWS Free Tier Prototype</h1>
+  <p>Frontend on S3. Dynamic requests go through the Application Load Balancer to Server1 / Server2.</p>
+
+  <div class="card">
+    <button id="fetchBtn">Fetch data</button>
+    <p>Served by: <span id="server" class="server">-</span></p>
+    <p>Notes from database:</p>
+    <ul id="notes"></ul>
+    <p id="status"></p>
+  </div>
+
+  <div class="card">
+    <input id="noteText" placeholder="Write a note">
+    <button id="addBtn">Add note</button>
+  </div>
+
+  <div class="card">
+    <strong>Request log (shows load balancing)</strong>
+    <ol id="log"></ol>
+  </div>
+
+<script>
+  // Replace with your ALB DNS name in Part 7, for example:
+  // const API_BASE = "http://my-alb-123456.ap-south-1.elb.amazonaws.com";
+  const API_BASE = "http://REPLACE_WITH_ALB_DNS";
+
+  const $ = (id) => document.getElementById(id);
+
+  function logServer(name) {
+    const li = document.createElement("li");
+    li.textContent = new Date().toLocaleTimeString() + " - " + name;
+    $("log").prepend(li);
+  }
+
+  async function fetchData() {
+    $("status").textContent = "";
+    try {
+      const res = await fetch(API_BASE + "/api/data");
+      const data = await res.json();
+      $("server").textContent = data.server;
+      $("server").className = "server " + data.server;
+      $("notes").innerHTML = "";
+      data.notes.forEach((n) => {
+        const li = document.createElement("li");
+        li.textContent = n;
+        $("notes").appendChild(li);
+      });
+      logServer(data.server);
+    } catch (e) {
+      $("status").textContent = "Request failed: " + e.message;
+    }
+  }
+
+  async function addNote() {
+    const text = $("noteText").value.trim();
+    if (!text) return;
+    try {
+      await fetch(API_BASE + "/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      $("noteText").value = "";
+      fetchData();
+    } catch (e) {
+      $("status").textContent = "Request failed: " + e.message;
+    }
+  }
+
+  $("fetchBtn").addEventListener("click", fetchData);
+  $("addBtn").addEventListener("click", addNote);
+</script>
+</body>
+</html>
